@@ -5,13 +5,18 @@ namespace App\Http\Controllers;
 use App\Models\Course;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Gate;
 
 class CourseController extends Controller
 {
-    public function index()
-    {
-        return view('course.list', ['courses' => Course::all()]);
-    }
+    public function index(Request $request)
+{
+    $courses = $request->user()->role === 'admin'
+        ? Course::latest()->get()
+        : $request->user()->courses()->latest()->get();
+
+    return view('course.list', ['courses' => $courses]);
+}
 
     public function create()
     {
@@ -19,41 +24,49 @@ class CourseController extends Controller
     }
 
     public function store(Request $request)
-    {
-        $course = Course::create($request->validate($this->rules()));
+{
+    $course = $request->user()->courses()->create(
+        $request->validate($this->rules())
+    );
 
-        return redirect()
-            ->route('courses.index')
-            ->with('success', "Course {$course->name} created successfully!");
-    }
-
+    return redirect()
+        ->route('courses.index')
+        ->with('success', "Course {$course->name} created successfully!");
+}
     public function show(Course $course)
-    {
-        return view('course.detail', ['course' => $course]);
-    }
+{
+    Gate::authorize('manage-course', $course);
+
+    return view('course.detail', ['course' => $course]);
+}
 
     public function edit(Course $course)
-    {
-        return view('course.edit', ['course' => $course]);
-    }
+{
+    Gate::authorize('manage-course', $course);
+
+    return view('course.edit', ['course' => $course]);
+}
 
     public function update(Request $request, Course $course)
-    {
-        $course->update($request->validate($this->rules()));
+{
+    Gate::authorize('manage-course', $course);
 
-        return redirect()
-            ->route('courses.show', $course)
-            ->with('success', 'Course updated successfully!');
-    }
+    $course->update($request->validate($this->rules()));
 
+    return redirect()
+        ->route('courses.show', $course)
+        ->with('success', 'Course updated successfully!');
+}
     public function destroy(Course $course)
-    {
-        $course->delete();
+{
+    Gate::authorize('manage-course', $course);
 
-        return redirect()
-            ->route('courses.index')
-            ->with('success', 'Course deleted successfully!');
-    }
+    $course->delete();
+
+    return redirect()
+        ->route('courses.index')
+        ->with('success', 'Course deleted successfully!');
+}
 
     private function rules(): array
     {
